@@ -1,71 +1,107 @@
 /********************************************************************************
     Linear Regression computation using linear algebra projection techniques.
     Author: Samantha Kyle
-    Date: December 20th, 2020
+    Date: December 21st, 2020
 *********************************************************************************/
 
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
 
-char DELIM = ' ';
-int WID = 2;
+struct matrix{
+    double* data;
+    int rows;
+    int cols;
+};
 
-void printMatrix(int len, int wid, double (*matrix)[wid]) {
+void printMatrix(struct matrix m){
     /*
     TODO:
     make this nicer, round consistently
     */
-    for (int i = 0; i < len; i++) {
-        for (int j = 0; j < wid; j++) {
-            printf("%f ", matrix[i][j]);
+    for (int i = 0; i < m.rows; i++) {
+        for (int j = 0; j < m.cols; j++) {
+            printf("%f ", m.data[(i*m.cols) + j]);
         }
         printf("\n");
     }
 }
 
-void transpose(int len, int wid, double (*matrix)[wid]) {
-    /*
-    TODO: calloc this matrix and make this function return it
-    */
-    double t[wid][len];
-    for (int i = 0; i < len; i++) {
-        for (int j = 0; j < wid; j++) {
-            t[j][i] = matrix[i][j];
+struct matrix transpose(struct matrix m){
+
+    struct matrix t;
+    t.rows = m.cols;
+    t.cols = m.rows;
+
+    t.data = (double*) malloc(t.rows * t.cols * sizeof(double));
+    
+    for (int i = 0; i < m.rows; i++) {
+        for (int j = 0; j < m.cols; j++) {
+            t.data[j* t.cols + i] = m.data[i*m.cols + j];
         }
     }
-    printMatrix(wid, len, t);
+    return t;
 
 }
 
-/*
-TODO: complete this function
--calloc memory for new matrix
--perform operations
--return new matrix
+struct matrix multiply(struct matrix m, struct matrix m2) {
+    /*
+    TODO: provide functionality to exit early when dimensions incorrect
+    */
 
-double* multiply(int len1, int wid1, int len2, int wid2, double (*matrix1)[wid1], double (*matrix2)[wid2]) {
+    if (m2.rows != m.cols) { printf("Cannot multiply\n");}
 
+    struct matrix new;
+    new.rows = m.rows;
+    new.cols = m2.cols;
+
+    new.data = (double*) malloc(new.rows * new.cols * sizeof(double));
+    
+    for (int i = 0; i < m.rows; i++) {
+        for (int j = 0; j < m2.cols; j++) {
+            double sumDot = 0;
+            for (int k = 0; k < m.cols; k++) {
+                sumDot += m.data[i*m.cols + k] * m2.data[k*m2.cols + j];
+            }
+            new.data[i*new.cols + j] = sumDot;
+        }
+    }
+    return new;
 }
-*/
 
-/*
-TODO: complete this function
-- needs to solve aTar = aTb where A is [1's x's] b is [y's]
-- call to get aT
-- multiply aT by a and aTb
-- solve for r0 and r1
-- return pointer to array containing r0 and r1 in order
+void LINprojection(struct matrix dataMatrix) {
+    struct matrix A;
+    A.rows = dataMatrix.rows;
+    A.cols = 2;
+    A.data = (double*) malloc(A.rows * A.cols * sizeof(double));
 
-double* LINprojection(int len, int wid, double *(dataMatrix)[wid]) {
+    struct matrix B;
+    B.rows = dataMatrix.rows;
+    B.cols = 1;
+    B.data = (double*) malloc(B.rows * sizeof(double));
 
+    for (int i = 0; i < A.rows; i++) {
+        A.data[i*A.cols] = (double) 1;
+        A.data[i*A.cols + 1] = dataMatrix.data[i*A.cols];
+        B.data[i] = dataMatrix.data[i*A.cols + 1];
+    }
+
+    struct matrix ATA = multiply(transpose(A), A);
+    struct matrix ATB = multiply(transpose(A), B);
+
+    //ATA is always a 2*2 matrix, with values a,b,c,d
+    double a = ATA.data[0];
+    double b = ATA.data[1];
+    double c = ATA.data[2];
+    double d = ATA.data[3];
+
+    double e = ATB.data[0];
+    double f = ATB.data[1];
+
+    double r0 = ((e/b) - (f/d))/((a/b) - (c/d));
+    double r1 = (e - (a*r0))/b;
+    printf("y = %f + %f\n", r1, r0);
 }
-*/
-
-/*
-TODO: complete this function
--something to print formula
-*/
 
 int main() {
     /*
@@ -80,33 +116,30 @@ int main() {
     char line[256];
     int lineCount = 0;
 
-    //get the total length of the file
+    //get the total rowsgth of the file
     while (fgets(line, sizeof(line), f)) {
         lineCount++;
     }
     rewind(f);
-
-    int len = lineCount;
-    /*
-    TODO: calloc this matrix
-    */
-    double matrix[len][WID];
-    double (*pmatrix)[WID] = matrix;
+    
+    struct matrix m;
+    m.rows = lineCount;
+    m.cols = 2;
+    m.data = (double*) malloc(m.rows * m.cols * sizeof(double));
     
     int i = 0;
     while (fgets(line, sizeof(line), f)) {
+        
         char* xVal = strtok(line, " \n");
         char* yVal = strtok(NULL, " \n");
-        matrix[i][0] = atof(xVal);
-        matrix[i][1] = atof(yVal);
+        m.data[i * m.cols] = atof(xVal);
+        m.data[i* m.cols + 1] = atof(yVal);
         i++;
     }
-    printf("ORIGINAL\n");
-    printMatrix(len, WID, pmatrix);
-    printf("TRANSPOSED\n");
-    transpose(len, WID, pmatrix);
 
-    free(pmatrix);
+    LINprojection(m);
+    
+    free(m.data);
 
     return 0;
 }
